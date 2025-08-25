@@ -1,0 +1,33 @@
+
+<!doctype html><html><head><meta charset="utf-8"><title>Attendify - Teacher</title><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="style.css"></head><body>
+<nav class="nav"><div class="brand">Attendify - Teacher</div><div class="nav-links"><button class="link" onclick="logout()">Logout</button></div></nav>
+<div class="container">
+  <div class="card profile" id="profileBox"></div>
+  <div class="card"><h2>Your Hour Slots</h2><div id="slotsList"></div></div>
+  <div class="card"><h2>Active Session & QR (Today)</h2><div id="sessionInfo" class="notice">No active session selected.</div><div id="qrcode"></div><div style="margin-top:12px;"><button id="endSession" class="danger">End Session</button></div></div>
+  <div class="card"><h2>Attendance (Selected Slot • Today)</h2><table><thead><tr><th>Student</th><th>Time</th></tr></thead><tbody id="attn"></tbody></table></div>
+</div>
+<footer><small>Start session for a slot to show QR. Attendance updates live when students scan.</small></footer>
+<script src="app.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+<script>
+requireRole('teacher');
+let user = currentUser();
+document.getElementById('profileBox').innerHTML = `<h3>Welcome, ${user.name}</h3><p>Subject: ${user.subject||''}</p><p class="notice">Email: ${user.email}</p>`;
+let selectedSlot = null; let activeSession = null;
+
+function renderSlots(){ const slots = getSlotsByTeacher(user.id); const root = document.getElementById('slotsList'); root.innerHTML=''; if(slots.length===0){ root.innerHTML='<p class="notice">No hour slots assigned.</p>'; return;} slots.forEach(s=>{ const c = getClassById(s.classId); const div = document.createElement('div'); div.className='card'; div.innerHTML = `<h3>${c?c.name:''} • <span class="badge">${s.label}</span></h3><div style="display:flex;gap:8px;margin-top:8px;"><button onclick="selectSlot('${s.id}')">Select</button><button class="secondary" onclick="startSession('${s.id}')">Start Session + QR</button></div>`; root.appendChild(div); }); }
+
+function selectSlot(id){ selectedSlot = id; activeSession = getActiveSessionForToday(id); updateSessionUI(); renderAttendance(); }
+function startSession(slotId){ selectedSlot = slotId; activeSession = startSessionForToday(slotId); updateSessionUI(); renderAttendance(); }
+function updateSessionUI(){ const info = document.getElementById('sessionInfo'); const qdiv = document.getElementById('qrcode'); qdiv.innerHTML=''; if(activeSession){ const c=getClassById(activeSession.classId); info.textContent = 'Active: ' + (c?c.name:'') + ' • ' + activeSession.date + ' • ' + activeSession.id; const payload = buildQRPayload(activeSession); new QRCode(qdiv, { text: payload, width: 220, height: 220 }); } else if(selectedSlot){ info.textContent = 'No active session. Start one to show QR.'; } else info.textContent = 'No slot selected.'; }
+
+function renderAttendance(){ const tbody = document.getElementById('attn'); tbody.innerHTML=''; if(!selectedSlot) return; const recs = getAttendanceForSlotDate(selectedSlot, todayISO()); recs.forEach(r=>{ const u = getUserById(r.studentId); const tr = document.createElement('tr'); tr.innerHTML = `<td>${u?u.name:''}</td><td>${new Date(r.timestamp).toLocaleTimeString()}</td>`; tbody.appendChild(tr); }); }
+
+document.getElementById('endSession').addEventListener('click', ()=>{ if(activeSession){ endSession(activeSession.id); activeSession=null; updateSessionUI(); } });
+
+// storage event to auto-refresh when attendance added from student
+window.addEventListener('storage', (e)=>{ if(e.key === 'attendify_last_update'){ activeSession = getActiveSessionForToday(selectedSlot); renderAttendance(); } });
+
+renderSlots();
+</script></body></html>

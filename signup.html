@@ -1,0 +1,37 @@
+
+<!doctype html><html><head><meta charset="utf-8"><title>Sign Up - Attendify</title><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="style.css"></head><body>
+<nav class="nav"><div class="brand">Attendify</div><div class="nav-links"><a href="index.html">Home</a><a href="login.html">Sign In</a></div></nav>
+<div class="container">
+  <div class="card" style="max-width:680px;margin:24px auto;">
+    <h2>Create account</h2>
+    <div class="row">
+      <div class="col"><label>Name</label><input id="name"></div>
+      <div class="col"><label>Email (use this to login)</label><input id="email" type="email"></div>
+      <div class="col"><label>Password</label><input id="password" type="password"></div>
+      <div class="col"><label>Role</label><select id="role"><option value="student">Student</option><option value="teacher">Teacher</option></select></div>
+    </div>
+
+    <div id="studentFields" style="margin-top:12px">
+      <div class="row">
+        <div class="col"><label>Roll No</label><input id="roll"></div>
+        <div class="col"><label>Branch</label><input id="branch"></div>
+      </div>
+    </div>
+
+    <div id="teacherFields" style="margin-top:12px; display:none">
+      <div class="row"><div class="col"><label>Subject</label><input id="subject"></div></div>
+    </div>
+
+    <div style="margin-top:12px;display:flex;gap:8px;">
+      <button id="create">Create</button>
+      <a class="btn" href="login.html" style="background:#6b7280">Back</a>
+    </div>
+    <p id="msg" class="notice"></p>
+  </div>
+</div>
+<script src="app.js"></script>
+<script>
+document.getElementById('role').addEventListener('change', function(){ const r=this.value; document.getElementById('studentFields').style.display = r==='student' ? 'block' : 'none'; document.getElementById('teacherFields').style.display = r==='teacher' ? 'block' : 'none'; });
+document.getElementById('create').addEventListener('click', ()=>{ const name=document.getElementById('name').value.trim(); const email=document.getElementById('email').value.trim(); const password=document.getElementById('password').value; const role=document.getElementById('role').value; const roll=document.getElementById('roll').value.trim(); const branch=document.getElementById('branch').value.trim(); const subject=document.getElementById('subject').value.trim(); if(!name||!email||!password){ document.getElementById('msg').textContent='Fill all fields'; return; } try{ createUser({name,email,password,role,roll,branch,subject}); document.getElementById('msg').textContent='Account created. You can login.'; } catch(e){ document.getElementById('msg').textContent=e.message; } });
+</script>
+</body></html>

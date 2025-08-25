@@ -1,0 +1,31 @@
+
+<!doctype html><html><head><meta charset="utf-8"><title>Attendify - Student</title><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="style.css"></head><body>
+<nav class="nav"><div class="brand">Attendify - Student</div><div class="nav-links"><button class="link" onclick="logout()">Logout</button></div></nav>
+<div class="container">
+  <div class="card profile" id="profileBox"></div>
+  <div class="card"><h2>Your Hour Slots</h2><table><thead><tr><th>Class</th><th>Hour</th></tr></thead><tbody id="slotsTbody"></tbody></table></div>
+  <div class="card"><h2>Scan QR to Mark Present</h2><p class="notice">Open the site via the start script for camera access (or use a server)</p><div id="reader"></div><p id="scanMsg" class="notice"></p><div style="margin-top:8px;"><button id="startScan">Start Camera</button><button id="stopScan" class="secondary">Stop</button></div></div>
+  <div class="card"><h2>Your Attendance</h2><table><thead><tr><th>Date</th><th>Class</th><th>Hour</th><th>Time</th></tr></thead><tbody id="attnTbody"></tbody></table></div>
+</div>
+<footer><small>Scan the teacher's QR for the correct hour slot.</small></footer>
+<script src="app.js"></script>
+<script src="https://unpkg.com/html5-qrcode"></script>
+<script>
+requireRole('student');
+const user = currentUser();
+document.getElementById('profileBox').innerHTML = `<h3>Welcome, ${user.name}</h3><p>Roll: ${user.roll||''} • Branch: ${user.branch||''}</p><p class='notice'>Email: ${user.email}</p>`;
+
+function renderSlots(){ const slots = getSlotsByStudent(user.id); const tbody = document.getElementById('slotsTbody'); tbody.innerHTML=''; slots.forEach(s=>{ const c=getClassById(s.classId); const tr=document.createElement('tr'); tr.innerHTML = `<td>${c?c.name:''}</td><td>${s.label}</td>`; tbody.appendChild(tr); }); }
+
+function renderAttendance(){ const recs = getAttendanceForStudent(user.id); const tbody = document.getElementById('attnTbody'); tbody.innerHTML=''; recs.forEach(r=>{ const c = getClassById(r.classId); const slot = getDB().slots.find(s=>s.id===r.slotId); const tr = document.createElement('tr'); tr.innerHTML = `<td>${r.date}</td><td>${c?c.name:''}</td><td>${slot?slot.label:''}</td><td>${new Date(r.timestamp).toLocaleTimeString()}</td>`; tbody.appendChild(tr); }); }
+
+let html5Qrcode = null;
+function onScanSuccess(decodedText){ const payload = parseQRPayload(decodedText); if(!payload){ document.getElementById('scanMsg').textContent = "Invalid QR."; return; } if(payload.date !== todayISO()){ document.getElementById('scanMsg').textContent = "QR not for today."; return; } const active = getActiveSessionForToday(payload.slotId); if(!active || active.id !== payload.sessionId){ document.getElementById('scanMsg').textContent = "Session not active."; return; } const mySlotIds = getSlotsByStudent(user.id).map(s=>s.id); if(!mySlotIds.includes(payload.slotId)){ document.getElementById('scanMsg').textContent = "You are not assigned to this hour."; return; } const ok = markAttendance(user.id, payload); document.getElementById('scanMsg').textContent = ok ? "Attendance marked!" : "Already marked."; renderAttendance(); }
+
+document.getElementById('startScan').addEventListener('click', async ()=>{ if(html5Qrcode) return; html5Qrcode = new Html5Qrcode('reader'); try{ await html5Qrcode.start({facingMode:'environment'},{fps:10,qrbox:250}, onScanSuccess); }catch(e){ document.getElementById('scanMsg').textContent = "Camera error: " + e; } });
+
+document.getElementById('stopScan').addEventListener('click', async ()=>{ if(html5Qrcode){ await html5Qrcode.stop(); await html5Qrcode.clear(); html5Qrcode = null; } });
+
+renderSlots();
+renderAttendance();
+</script></html>

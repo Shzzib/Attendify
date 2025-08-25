@@ -1,0 +1,121 @@
+
+<!doctype html><html><head><meta charset="utf-8"><title>Attendify Admin</title><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="style.css"></head><body>
+<nav class="nav"><div class="brand">Attendify - Admin</div><div class="nav-links"><button class="link" onclick="logout()">Logout</button></div></nav>
+<div class="container">
+  <div class="card">
+    <h2>Add Teacher / Student</h2>
+    <div class="row">
+      <div class="col"><label>Name</label><input id="uName"></div>
+      <div class="col"><label>Email</label><input id="uEmail" type="email"></div>
+      <div class="col"><label>Password</label><input id="uPass"></div>
+      <div class="col"><label>Role</label><select id="uRole"><option value="teacher">Teacher</option><option value="student">Student</option></select></div>
+    </div>
+    <div id="uStudent" style="margin-top:12px;display:none">
+      <div class="row"><div class="col"><label>Roll No</label><input id="uRoll"></div><div class="col"><label>Branch</label><input id="uBranch"></div></div>
+    </div>
+    <div id="uTeacher" style="margin-top:12px;display:none">
+      <div class="row"><div class="col"><label>Subject</label><input id="uSubject"></div></div>
+    </div>
+    <div style="margin-top:12px;"><button id="createUserBtn">Create User</button></div>
+    <p id="adminMsg" class="notice"></p>
+  </div>
+
+  <div class="card">
+    <h2>Create Class</h2>
+    <div class="row"><div class="col"><label>Class Name</label><input id="className"></div></div>
+    <div style="margin-top:12px;"><button id="createClassBtn">Create Class</button></div>
+  </div>
+
+  <div class="card">
+    <h2>Create Hour Slot & Assign Teacher</h2>
+    <div class="row">
+      <div class="col"><label>Class</label><select id="slotClass"></select></div>
+      <div class="col"><label>Teacher</label><select id="slotTeacher"></select></div>
+      <div class="col"><label>Hour (Label)</label><input id="slotLabel" placeholder="e.g., 09:00–10:00"></div>
+    </div>
+    <div style="margin-top:12px;"><button id="createSlotBtn">Create Slot</button></div>
+  </div>
+
+  <div class="card">
+    <h2>Enroll Student to Specific Hour</h2>
+    <div class="row">
+      <div class="col"><label>Slot</label><select id="enrollSlot"></select></div>
+      <div class="col"><label>Student</label><select id="enrollStudent"></select></div>
+    </div>
+    <div style="margin-top:12px;"><button id="enrollBtn">Enroll</button></div>
+  </div>
+
+  <div class="card">
+    <h2>Overview</h2>
+    <div class="row">
+      <div class="col"><h3>Classes</h3><table id="classesTable"><thead><tr><th>Name</th></tr></thead><tbody></tbody></table></div>
+      <div class="col"><h3>Hour Slots</h3><table id="slotsTable"><thead><tr><th>Class</th><th>Teacher</th><th>Hour</th></tr></thead><tbody></tbody></table></div>
+    </div>
+    <div class="row">
+      <div class="col"><h3>Teachers</h3><table id="teachersTable"><thead><tr><th>Name</th><th>Email</th><th>Subject</th></tr></thead><tbody></tbody></table></div>
+      <div class="col"><h3>Students</h3><table id="studentsTable"><thead><tr><th>Name</th><th>Email</th><th>Roll</th><th>Branch</th></tr></thead><tbody></tbody></table></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Attendance Report & Export</h2>
+    <div class="row"><div class="col"><label>Slot</label><select id="reportSlot"></select></div><div class="col"><label>Date</label><input id="reportDate" type="date"></div></div>
+    <div style="margin-top:12px;"><button id="runReport">Run Report</button><button id="exportCsv" class="secondary">Export CSV</button></div>
+    <table><thead><tr><th>Student</th><th>Roll</th><th>Branch</th><th>Present?</th><th>Time</th></tr></thead><tbody id="reportBody"></tbody></table>
+  </div>
+
+</div>
+<footer><small>Admin controls</small></footer>
+<script src="app.js"></script>
+<script>
+requireRole('admin');
+const el = id => document.getElementById(id);
+function refreshOptions(){
+  const db = getDB();
+  el('slotClass').innerHTML = db.classes.map(c=>`<option value="${c.id}">${c.name}</option>`).join('');
+  el('slotTeacher').innerHTML = getUsersByRole('teacher').map(t=>`<option value="${t.id}">${t.name} (${t.email})</option>`).join('');
+  el('enrollSlot').innerHTML = db.slots.map(s=>{const c=getClassById(s.classId); const t=getUserById(s.teacherId); return `<option value="${s.id}">${c?c.name:''} • ${s.label} • ${t?t.name:''}</option>`}).join('');
+  el('reportSlot').innerHTML = el('enrollSlot').innerHTML;
+  el('enrollStudent').innerHTML = getUsersByRole('student').map(s=>`<option value="${s.id}">${s.name} (${s.email})</option>`).join('');
+  document.querySelector('#teachersTable tbody').innerHTML = getUsersByRole('teacher').map(t=>`<tr><td>${t.name}</td><td>${t.email}</td><td>${t.subject||''}</td></tr>`).join('');
+  document.querySelector('#studentsTable tbody').innerHTML = getUsersByRole('student').map(s=>`<tr><td>${s.name}</td><td>${s.email}</td><td>${s.roll||''}</td><td>${s.branch||''}</td></tr>`).join('');
+  document.querySelector('#classesTable tbody').innerHTML = getDB().classes.map(c=>`<tr><td>${c.name}</td></tr>`).join('');
+  document.querySelector('#slotsTable tbody').innerHTML = getDB().slots.map(s=>{const c=getClassById(s.classId); const t=getUserById(s.teacherId); return `<tr><td>${c?c.name:''}</td><td>${t?t.name:''}</td><td>${s.label}</td></tr>`}).join('');
+}
+
+el('uRole').addEventListener('change', ()=>{ const r = el('uRole').value; el('uStudent').style.display = r==='student'?'block':'none'; el('uTeacher').style.display = r==='teacher'?'block':'none'; });
+
+el('createUserBtn').addEventListener('click', ()=>{
+  const name = el('uName').value.trim(); const email = el('uEmail').value.trim(); const pass = el('uPass').value.trim()||'password123'; const role = el('uRole').value;
+  const roll = el('uRoll').value.trim(); const branch = el('uBranch').value.trim(); const subject = el('uSubject').value.trim();
+  if(!name||!email){ el('adminMsg').textContent='Fill all fields'; return; }
+  try{ createUser({name,email,password:pass,role,roll,branch,subject}); el('adminMsg').textContent='User created.'; refreshOptions(); } catch(e){ el('adminMsg').textContent=e.message; }
+});
+
+el('createClassBtn').addEventListener('click', ()=>{ const name = el('className').value.trim(); if(!name) return; createClass(name); refreshOptions(); });
+el('createSlotBtn').addEventListener('click', ()=>{ const classId = el('slotClass').value; const teacherId = el('slotTeacher').value; const label = el('slotLabel').value.trim(); if(!classId||!teacherId||!label) return; createSlot(classId,teacherId,label); refreshOptions(); });
+el('enrollBtn').addEventListener('click', ()=>{ const slotId = el('enrollSlot').value; const studentId = el('enrollStudent').value; if(!slotId||!studentId) return; enrollStudentToSlot(slotId,studentId); alert('Enrolled!'); refreshOptions(); });
+
+el('runReport').addEventListener('click', ()=>{
+  const slotId = el('reportSlot').value; const date = el('reportDate').value || todayISO(); const enrolledIds = getDB().slotEnrollments.filter(e=>e.slotId===slotId).map(e=>e.studentId);
+  const students = getDB().users.filter(u=>u.role==='student' && enrolledIds.includes(u.id));
+  const attn = getAttendanceForSlotDate(slotId,date);
+  el('reportBody').innerHTML = students.map(s=>{ const rec = attn.find(a=>a.studentId===s.id); return `<tr><td>${s.name}</td><td>${s.roll||''}</td><td>${s.branch||''}</td><td>${rec?'<span class="badge" style="background:#dcfce7;color:#065f46">Present</span>':'—'}</td><td>${rec?new Date(rec.timestamp).toLocaleTimeString():''}</td></tr>` }).join('');
+});
+
+el('exportCsv').addEventListener('click', ()=>{
+  const slotId = el('reportSlot').value; const date = el('reportDate').value || todayISO();
+  const rows = [['Name','Roll','Branch','Present','Time']];
+  const enrolledIds = getDB().slotEnrollments.filter(e=>e.slotId===slotId).map(e=>e.studentId);
+  const students = getDB().users.filter(u=>u.role==='student' && enrolledIds.includes(u.id));
+  const attn = getAttendanceForSlotDate(slotId,date);
+  students.forEach(s=>{ const rec = attn.find(a=>a.studentId===s.id); rows.push([s.name, s.roll||'', s.branch||'', rec? 'Present':'Absent', rec? new Date(rec.timestamp).toLocaleTimeString(): '']); });
+  downloadCSV('attendance-'+date+'.csv', rows);
+});
+
+// react to storage updates to refresh UI when other tabs change data
+window.addEventListener('storage', (e)=>{ if(e.key === 'attendify_last_update'){ refreshOptions(); } });
+
+refreshOptions();
+document.getElementById('reportDate').value = todayISO();
+</script></html>

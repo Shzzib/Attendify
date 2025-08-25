@@ -1,0 +1,24 @@
+
+<!doctype html><html><head><meta charset="utf-8"><title>Sign In - Attendify</title><meta name="viewport" content="width=device-width,initial-scale=1"><link rel="stylesheet" href="style.css"></head><body>
+<nav class="nav"><div class="brand">Attendify</div><div class="nav-links"><a href="index.html">Home</a><a href="signup.html">Sign Up</a></div></nav>
+<div class="container">
+  <div class="card" style="max-width:520px;margin:40px auto;">
+    <h2>Sign In</h2>
+    <form id="loginForm">
+      <label>Username or Email</label>
+      <input id="email" required placeholder="email or username">
+      <label>Password</label>
+      <input id="password" type="password" required placeholder="password">
+      <div style="margin-top:12px; display:flex; gap:8px;">
+        <button type="submit">Sign In</button>
+        <a class="btn" href="signup.html" style="background:#10b981">Create account</a>
+      </div>
+    </form>
+    <p id="msg" class="notice" style="color:var(--danger)"></p>
+  </div>
+</div>
+<script src="app.js"></script>
+<script>
+document.getElementById('loginForm').addEventListener('submit',(e)=>{e.preventDefault(); const id=document.getElementById('email').value.trim(); const pass=document.getElementById('password').value; let user=null; if(id==='admin'){ user = login('admin', pass); } else { user = login(id, pass); } if(!user){ document.getElementById('msg').textContent='Invalid credentials'; return; } if(user.role==='admin') location.href='admin.html'; else if(user.role==='teacher') location.href='teacher.html'; else location.href='student.html'; });
+</script>
+</body></html>
